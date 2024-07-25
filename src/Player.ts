@@ -7,7 +7,7 @@ import { CastFrameQueue, NULL_FRAME, IFrame, NullFrameQueue, IFrameQueue } from 
 import { EventEmitter, IEvent } from './Events'
 import { PlayerView } from './ui/PlayerView'
 import { SOLARIZED_DARK, SOLARIZED_LIGHT } from './Theme'
-import fetchCast from './CastFetcher'
+import fetchCast, { SourceProvider } from './CastFetcher'
 
 function writeSync(term: xterm.Terminal, data: string) {
   if (data.length) {
@@ -53,6 +53,7 @@ export class XtermPlayer implements XtermPlayerApi {
   private _loading: boolean = false
   private _lasttime: number = 0
   private _lastframe: IFrame = NULL_FRAME
+  private _sourceProvier: SourceProvider | null = null
 
   private _onReady = new EventEmitter<void>()
   private _onLoading = new EventEmitter<void>()
@@ -75,13 +76,15 @@ export class XtermPlayer implements XtermPlayerApi {
   constructor(
     url: string,
     el: HTMLElement,
-    options: IPlayerOptions = {}
+    options: IPlayerOptions = {},
+    sourceProvider: SourceProvider | null = null
   ) {
     this.el = el
     this._url = url
     this._term = createTerminal(options)
     this._audio = new Audio()
     this._view = new PlayerView(this)
+    this._sourceProvier = sourceProvider
 
     el.append(this._view.element)
     this._term.open(this._view.videoWrapper)
@@ -103,7 +106,7 @@ export class XtermPlayer implements XtermPlayerApi {
     this._onLoading.fire()
     this._onStateChanged.fire(this.state)
 
-    fetchCast(this._url).then((cast) => {
+    fetchCast(this._url, this._sourceProvier).then((cast) => {
       this._term.resize(cast.header.width, cast.header.height)
 
       if (cast.header.audio) {
